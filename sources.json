@@ -1,0 +1,34 @@
+{
+  "collection": "Summer coast — actual camera footage, not generated 3D",
+  "license": "Pexels License (https://www.pexels.com/license/)",
+  "clips": [
+    {
+      "id": 4611808,
+      "name": "Hawaiian tropical beach with palm trees",
+      "artist": "Jess Loiterton",
+      "page": "https://www.pexels.com/video/waves-rushing-to-shore-4611808/",
+      "fps": 25
+    },
+    {
+      "id": 37415702,
+      "name": "Close-up real surf meeting golden beach sand",
+      "artist": "Huey Freeman",
+      "page": "https://www.pexels.com/video/close-up-of-ocean-waves-on-sandy-shore-37415702/",
+      "fps": 25
+    },
+    {
+      "id": 6624743,
+      "name": "Aerial shot of turquoise water breaking on shore",
+      "artist": "Taryn Elliott",
+      "page": "https://www.pexels.com/video/waves-crashing-on-the-shoreline-6624743/",
+      "fps": 25
+    },
+    {
+      "id": 7618000,
+      "name": "Aerial drone view of ocean wave patterns",
+      "artist": "Taryn Elliott",
+      "page": "https://www.pexels.com/video/drone-footage-of-a-beach-7618000/",
+      "fps": 25
+    }
+  ]
+}
