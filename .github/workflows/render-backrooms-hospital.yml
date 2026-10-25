@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: original-backrooms-${{ github.ref }}
+  group: original-backrooms-parallel-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
