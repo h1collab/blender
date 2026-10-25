@@ -87,7 +87,10 @@ def main():
     bpy.context.preferences.filepaths.save_version=0
     bpy.ops.wm.save_as_mainfile(filepath=project)
     for strip in strips:
-        strip.filepath=bpy.path.relpath(os.path.abspath(strip.filepath))
+        if strip.type == "MOVIE":
+            strip.filepath=bpy.path.relpath(os.path.abspath(strip.filepath))
+        elif strip.type == "SOUND":
+            strip.sound.filepath=bpy.path.relpath(os.path.abspath(strip.sound.filepath))
     bpy.ops.wm.save_as_mainfile(filepath=project)
     scene.frame_set(1)
     print("BLENDER_HOSPITAL_EDIT_PROJECT",project,flush=True)
