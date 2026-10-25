@@ -365,10 +365,13 @@ def main():
     scene.cycles.device = "CPU"
     scene.cycles.samples = a.samples
     scene.cycles.use_adaptive_sampling = True
+    # Ubuntu's apt Blender build may exclude OpenImageDenoise entirely.
+    # Enabling it can abort the render with "Build without OpenImageDenoiser".
+    # Keep native denoising disabled for dependable headless GitHub runners.
     if hasattr(scene.cycles, "use_denoising"):
-        scene.cycles.use_denoising = True
+        scene.cycles.use_denoising = False
     if hasattr(bpy.context.view_layer, "cycles"):
-        bpy.context.view_layer.cycles.use_denoising = True
+        bpy.context.view_layer.cycles.use_denoising = False
     scene.render.resolution_x = a.width
     scene.render.resolution_y = a.height
     scene.render.resolution_percentage = 100
