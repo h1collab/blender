@@ -6,18 +6,16 @@ on:
     paths:
       - ".github/workflows/render-backrooms-hospital.yml"
       - "scripts/backrooms_3d.py"
+      - "scripts/denoise_frames.py"
       - "scripts/hospital_audio.py"
   workflow_dispatch:
     inputs:
       quality:
-        description: "Cycles CPU render profile"
-        type: choice
+        description: "Original Cycles 3D quality (higher consumes more CPU)"
         required: true
+        type: choice
         default: standard
-        options:
-          - draft
-          - standard
-          - high
+        options: [draft, standard, high]
 
 permissions:
   contents: read
@@ -27,112 +25,201 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  render:
-    name: Original 3D scene / Cycles CPU / single POV camera / 30s
+  setup:
+    name: Build original hospital / test Cycles / save .blend
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
-
+    timeout-minutes: 35
+    outputs:
+      width: ${{ steps.settings.outputs.width }}
+      height: ${{ steps.settings.outputs.height }}
+      fps: ${{ steps.settings.outputs.fps }}
+      frames: ${{ steps.settings.outputs.frames }}
+      samples: ${{ steps.settings.outputs.samples }}
     steps:
-      - name: Checkout ORIGINAL Blender source (no stock footage)
+      - name: Checkout custom Blender 3D source
         uses: actions/checkout@v4
 
-      - name: Install Blender and FFmpeg
+      - name: Install CPU Blender
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends blender ffmpeg
-          blender --version | head -n 2
-          ffmpeg -version | head -n 1
+          sudo apt-get install -y --no-install-recommends blender
 
-      - name: Select physically rendered Cycles quality
+      - name: Select exact 30s quality profile
+        id: settings
         env:
           QUALITY: ${{ inputs.quality || 'standard' }}
         run: |
           if [ "$QUALITY" = "high" ]; then
-            echo "WIDTH=1280" >> "$GITHUB_ENV"
-            echo "HEIGHT=720" >> "$GITHUB_ENV"
-            echo "FPS=24" >> "$GITHUB_ENV"
-            echo "FRAMES=720" >> "$GITHUB_ENV"
-            echo "SAMPLES=12" >> "$GITHUB_ENV"
+            WIDTH=1280; HEIGHT=720; FPS=24; FRAMES=720; SAMPLES=18
           elif [ "$QUALITY" = "draft" ]; then
-            echo "WIDTH=640" >> "$GITHUB_ENV"
-            echo "HEIGHT=360" >> "$GITHUB_ENV"
-            echo "FPS=15" >> "$GITHUB_ENV"
-            echo "FRAMES=450" >> "$GITHUB_ENV"
-            echo "SAMPLES=4" >> "$GITHUB_ENV"
+            WIDTH=640; HEIGHT=360; FPS=15; FRAMES=450; SAMPLES=6
           else
-            echo "WIDTH=960" >> "$GITHUB_ENV"
-            echo "HEIGHT=540" >> "$GITHUB_ENV"
-            echo "FPS=18" >> "$GITHUB_ENV"
-            echo "FRAMES=540" >> "$GITHUB_ENV"
-            echo "SAMPLES=7" >> "$GITHUB_ENV"
+            WIDTH=960; HEIGHT=540; FPS=18; FRAMES=540; SAMPLES=12
           fi
+          for name in WIDTH HEIGHT FPS FRAMES SAMPLES; do
+            lower=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+            echo "$lower=${!name}" >> "$GITHUB_OUTPUT"
+          done
 
-      - name: Smoke-test actual Blender 3D scene and render a real frame
+      - name: Build original 3D hospital and render one test frame
         run: |
-          blender --background --factory-startup --threads 4 \
+          blender -b --factory-startup --threads 4 \
             --python scripts/backrooms_3d.py -- \
-            --output-dir output/backrooms --width 640 --height 360 \
-            --fps "$FPS" --frames "$FRAMES" --samples 12 \
-            --render-still --still-frame "$((FRAMES / 2))"
+            --output-dir output/backrooms \
+            --width "${{ steps.settings.outputs.width }}" \
+            --height "${{ steps.settings.outputs.height }}" \
+            --fps "${{ steps.settings.outputs.fps }}" \
+            --frames "${{ steps.settings.outputs.frames }}" \
+            --samples 30 --render-still --preview-percent 68 \
+            --still-frame "${{ steps.settings.outputs.frames }}"
           test -s output/backrooms/preview.png
           test -s output/backrooms/backrooms_hospital_3d.blend
 
-      - name: Upload proof of actual Cycles render
+      - name: Upload authentic rendered preview and 3D scene
         uses: actions/upload-artifact@v4
         with:
-          name: backrooms-real-blender-preview
-          path: output/backrooms/preview.png
+          name: backrooms-original-3d-scene
+          path: |
+            output/backrooms/preview.png
+            output/backrooms/backrooms_hospital_3d.blend
+          if-no-files-found: error
           retention-days: 14
 
-      - name: Render EVERY animation frame in Blender Cycles CPU
-        run: |
-          blender --background --factory-startup --threads 4 \
-            --python scripts/backrooms_3d.py -- \
-            --output-dir output/backrooms --width "$WIDTH" --height "$HEIGHT" \
-            --fps "$FPS" --frames "$FRAMES" --samples "$SAMPLES"
-          test -s output/backrooms/frames/frame_0001.png
-          test -s "output/backrooms/frames/frame_$(printf '%04d' "$FRAMES").png"
+  render-shards:
+    name: Cycles CPU physical frames — shard ${{ matrix.shard }}/8
+    needs: [setup]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 175
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        shard: [0,1,2,3,4,5,6,7]
+    steps:
+      - name: Checkout original scene code
+        uses: actions/checkout@v4
 
-      - name: Generate original ambient audio (not stock video)
+      - name: Install CPU Blender
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender
+
+      - name: Render correct frames from one continuous 30s virtual camera
+        env:
+          SHARD: ${{ matrix.shard }}
+          FRAMES: ${{ needs.setup.outputs.frames }}
+          WIDTH: ${{ needs.setup.outputs.width }}
+          HEIGHT: ${{ needs.setup.outputs.height }}
+          FPS: ${{ needs.setup.outputs.fps }}
+          SAMPLES: ${{ needs.setup.outputs.samples }}
+        run: |
+          START=$(( FRAMES*SHARD/8+1 ))
+          END=$(( FRAMES*(SHARD+1)/8 ))
+          echo "Render original Cycles 3D frames $START ... $END of $FRAMES"
+          blender -b --factory-startup --threads 4 \
+            --python scripts/backrooms_3d.py -- \
+            --output-dir output/backrooms \
+            --width "$WIDTH" --height "$HEIGHT" \
+            --fps "$FPS" --frames "$FRAMES" --samples "$SAMPLES" \
+            --start-frame "$START" --end-frame "$END"
+          count=$(find output/backrooms/frames -maxdepth 1 -name 'frame_*.png' | wc -l)
+          test "$count" -eq "$((END-START+1))"
+
+      - name: Upload original PNG frames from Cycles
+        uses: actions/upload-artifact@v4
+        with:
+          name: backrooms-original-frames-${{ matrix.shard }}
+          path: output/backrooms/frames/frame_*.png
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  assemble:
+    name: Verify Blender frames and encode final 30s MP4
+    needs: [setup,render-shards]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout original soundtrack and denoiser
+        uses: actions/checkout@v4
+
+      - name: Download all eight ORIGINAL 3D rendered frame sets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: backrooms-original-frames-*
+          merge-multiple: true
+          path: output/backrooms/frames
+
+      - name: Download editable Blender source and real rendered preview
+        uses: actions/download-artifact@v4
+        with:
+          name: backrooms-original-3d-scene
+          path: output/backrooms
+
+      - name: Install video tools and OpenCV edge-preserving denoising
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg python3-opencv
+          /usr/bin/python3 -c 'import cv2; print("OpenCV",cv2.__version__)'
+
+      - name: Confirm no missing physically rendered frames
+        env:
+          FRAMES: ${{ needs.setup.outputs.frames }}
+        run: |
+          count=$(find output/backrooms/frames -maxdepth 1 -name 'frame_*.png' | wc -l)
+          echo "Physical Blender PNG frame count: $count"
+          test "$count" -eq "$FRAMES"
+          test -s output/backrooms/backrooms_hospital_3d.blend
+
+      - name: Denoise 3D light sampling without adding external imagery
+        run: |
+          /usr/bin/python3 scripts/denoise_frames.py \
+            --input output/backrooms/frames \
+            --output output/backrooms/clean \
+            --strength 16
+          test -s output/backrooms/clean/frame_0001.png
+
+      - name: Generate original hospital electricity and footsteps audio
         run: |
           python3 scripts/hospital_audio.py \
             --output output/backrooms/ambience.wav --seconds 30
 
-      - name: Encode 30-second POV video and atmosphere
+      - name: Encode cleaned Blender-rendered PNGs into 30-second MP4
+        env:
+          FPS: ${{ needs.setup.outputs.fps }}
+          FRAMES: ${{ needs.setup.outputs.frames }}
         run: |
           ffmpeg -hide_banner -loglevel error -y \
             -framerate "$FPS" -start_number 1 \
-            -i output/backrooms/frames/frame_%04d.png \
+            -i output/backrooms/clean/frame_%04d.png \
             -i output/backrooms/ambience.wav \
-            -vf "hqdn3d=1.8:1.3:2:1.6,format=yuv420p" \
             -map 0:v:0 -map 1:a:0 \
             -c:v libx264 -preset medium -crf 19 -pix_fmt yuv420p \
             -c:a aac -b:a 160k -t 30 -movflags +faststart \
             output/backrooms/backrooms_hospital_3d_30s.mp4
+          cp "output/backrooms/clean/frame_$(printf '%04d' "$((FRAMES/2))").png" \
+            output/backrooms/preview.png
 
-      - name: Assert exactly thirty seconds, original 3D scene, valid codecs
+      - name: Verify true 30-second H264 MP4 and editable 3D scene
         run: |
           python3 - <<'PY'
-          import json
-          import os
-          import subprocess
+          import json,os,subprocess
           path="output/backrooms/backrooms_hospital_3d_30s.mp4"
-          result=subprocess.run([
-            "ffprobe","-v","error","-show_entries","format=duration,size",
+          proc=subprocess.run(["ffprobe","-v","error",
+            "-show_entries","format=duration,size",
             "-show_entries","stream=codec_name,width,height",
-            "-of","json",path
-          ],check=True,capture_output=True,text=True)
-          data=json.loads(result.stdout)
+            "-of","json",path],check=True,capture_output=True,text=True)
+          data=json.loads(proc.stdout)
           duration=float(data["format"]["duration"])
-          assert abs(duration-30.0)<0.12, duration
+          assert abs(duration-30)<.12,duration
           assert int(data["format"]["size"])>500000
           assert any(s["codec_name"]=="h264" for s in data["streams"])
           assert any(s["codec_name"]=="aac" for s in data["streams"])
           assert os.path.getsize("output/backrooms/backrooms_hospital_3d.blend")>10000
-          print("VERIFIED: 30-second video rendered directly from original Blender 3D meshes; no stock footage",duration)
+          print("VERIFIED: all 30 seconds derived from original Blender 3D frames", duration)
           PY
 
-      - name: Upload rendered movie, preview, source project and audio
+      - name: Upload the original 30s hospital 3D film
         uses: actions/upload-artifact@v4
         with:
           name: backrooms-original-3d-30s

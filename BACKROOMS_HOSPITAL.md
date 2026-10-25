@@ -1,61 +1,57 @@
-# BACKROOMS — Original Blender 3D / Abandoned Hospital / First-person POV (30 s)
+# 原创 Blender 后室 / 废弃医院 / 30 秒连续第一人称实景 CGI
 
-**这次是真正的 Blender 三维场景与逐帧渲染，不是实拍素材拼接。**
+**现在确实是 Blender 自建三维场景、三维材质、灯光和摄影机逐帧渲染，不是视频素材拼贴。**
 
-[GitHub Actions：Render Original 3D Backrooms (30s POV)](https://github.com/h1collab/blender/actions/workflows/render-backrooms-hospital.yml)
+[直接查看 GitHub Actions 工作流](https://github.com/h1collab/blender/actions/workflows/render-backrooms-hospital.yml)
 
-## 原创内容与场景
+## 场景
+- 6×4 单元互通的废弃医院后室迷宫，由 3D 墙体、病房开口、医院门、医院护墙板、吊顶等构成
+- 程序化墙壁裂纹、发霉/剥落、地砖污渍、吊顶老化、医院门牌
+- 三维病床、轮椅、推车、散落的病历纸、闪烁的荧光灯和暗角
+- 一台在空间内移动的第一人称摄影机：全程连续 30s，不切镜头
+- 原创生成的 30 秒脚步、灯光电流和不安静的医院氛围声
 
-- 所有建筑均用 `bpy` 生成：6×4 相互连通的迷宫式医院病房与走廊。
-- Cycles 路径追踪渲染；真实阴影和灯光。程序化 PBR：旧墙纸、破损塑料地板、
-  水渍吊顶、医院护墙板、楼道防护扶手、刷旧金属。
-- 三维病床、轮椅、药品手推车、医疗看板、病房门、荧光灯灯箱。
-- **一台第一人称摄像机，沿连续曲线探索整整 30 秒；没有剪辑点和跳切。**
-- 物理灯光不规律闪烁、轻微步行头部晃动和自然动态视角。
-- 原创脚本合成的空调低频电流、脚步与遥远金属声（没有下载音视频）。
-- **没有 stock 视频、在线模型、预渲染图片、AI 图像/纹理**。全部图像像素由
-  Blender 的 mesh / shaders / lights / camera 自行产生。
+完全不依赖图库素材、AI 图片、外部模型或外部视频。
+画面是模拟真实摄影的原创 **CGI**，不宣称这是真实医院拍摄。
 
-这是原创写实风格 CGI，不是真实废弃医院的摄影纪录。
+## GitHub Actions：真正逐帧 Blender 渲染
 
-## 渲染并下载 MP4
+GitHub Actions 使用 8 个并行 CPU Runner 渲染 **同一 Blender 3D 动画**
+的不同帧区间。它们之间没有拼接的素材边界，每个帧编号在统一的相机时间线
+上。渲染完后再合并 PNG 序列，借助 OpenCV 去除 Cycles 低采样的 Monte-Carlo
+噪点，通过 FFmpeg 编码为 30 秒 MP4。视频画面均来自 Blender 渲染，没有素材拼接。
 
-进入 [Actions](https://github.com/h1collab/blender/actions)，选择
-**Render Original 3D Backrooms (30s POV)** → **Run workflow**。
-完成后下载 `backrooms-original-3d-30s` artifact：
-- `backrooms_hospital_3d_30s.mp4`：30 秒原创 3D 后室视频 + 环境声
-- `backrooms_hospital_3d.blend`：完整可编辑 3D 场景与第一人称镜头路径
-- `preview.png`：直接从 Cycles 渲染出的实际截图
-- `ambience.wav`：原创合成氛围声
+工作流先执行单帧 Cycles 测试并生成 `backrooms-original-3d-scene`
+（含原始 PNG 预览及可编辑 `.blend` 工程）。
+随后使用 8 个 Runner 并行执行实际 Cycles 逐帧渲染，最后上传
+`backrooms-original-3d-30s`，包含：
+- `backrooms_hospital_3d_30s.mp4`（30 秒 H.264 + AAC）
+- `backrooms_hospital_3d.blend`（可编辑完整原创 3D 项目）
+- `preview.png`（去噪后的真实 Cycles 渲染帧）
+- `ambience.wav`（原创程序生成环境音）
 
-工作流先进行单帧 Cycles 测试，上传 `backrooms-real-blender-preview`
-作为确凿的 Blender 渲染证据，然后渲染所有动画帧并用 FFmpeg
-**编码这些 Blender 渲染 PNG** 为 MP4；FFmpeg 只负责视频编码和轻度降噪，
-**不产生任何场景画面**。
-
-| quality | 源渲染分辨率 | 帧率 | 真实 Blender 帧数 | Cycles Samples |
+### 质量
+| 设置 | 真正的 3D 渲染尺寸 | 帧率 | Blender 原始帧 | Cycles 采样 |
 |---|---|---|---|---|
-| draft | 640×360 | 15 fps | 450 | 4 |
-| standard（默认） | 960×540 | 18 fps | 540 | 7 |
-| high | 1280×720 | 24 fps | 720 | 12 |
+| draft | 640 × 360 | 15 fps | 450 | 6 |
+| standard（默认） | 960 × 540 | 18 fps | 540 | 12 |
+| high | 1280 × 720 | 24 fps | 720 | 18 |
 
-均为**完整 30 秒**。在 GitHub Actions CPU 环境下，高画质很耗时间；可自行改
-源码提高采样或使用本地 GPU 渲染。工作流的默认模式兼顾真实画面和 CI 成本。
+选择更高画质需要更多 CPU / GitHub Actions 资源；
+即使并行渲染，也可能耗时较长。每个画质都是真正的 **30 秒 Blender 3D** 动画。
 
-## 自己使用 Blender 命令行
-
+### Blender 命令行本地渲染
 ```bash
-mkdir -p output/backrooms/frames
-blender -b --factory-startup --threads 4 --python scripts/backrooms_3d.py -- \
+blender --background --factory-startup --python scripts/backrooms_3d.py -- \
   --output-dir output/backrooms --width 960 --height 540 \
-  --fps 18 --frames 540 --samples 7
+  --fps 18 --frames 540 --samples 12
 python3 scripts/hospital_audio.py --output output/backrooms/ambience.wav --seconds 30
-ffmpeg -y -framerate 18 -start_number 1 -i output/backrooms/frames/frame_%04d.png \
-  -i output/backrooms/ambience.wav -map 0:v:0 -map 1:a:0 \
+python3 scripts/denoise_frames.py --input output/backrooms/frames --output output/backrooms/clean
+ffmpeg -y -framerate 18 -start_number 1 -i output/backrooms/clean/frame_%04d.png \
+  -i output/backrooms/ambience.wav \
   -c:v libx264 -pix_fmt yuv420p -c:a aac -t 30 \
   output/backrooms/backrooms_hospital_3d_30s.mp4
 ```
 
-Source: [scripts/backrooms_3d.py](scripts/backrooms_3d.py).
-The previous stock-footage hospital script and material-source list were deleted.
-The unrelated summer project remains unchanged.
+源码：`scripts/backrooms_3d.py`。
+夏日项目保持不变。

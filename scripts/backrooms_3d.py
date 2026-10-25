@@ -414,6 +414,68 @@ def place_props(palette):
         closed_hospital_door(*room,"north",palette,idx+2)
 
 
+
+
+def water_damage(palette):
+    """Actual randomly chipped geometric plaster patches along real room walls.
+
+    Generated as irregular polygons flush against enclosed walls; no external textures.
+    """
+    for room_idx, (ix,iy) in enumerate(ROUTE):
+        c=grid(ix,iy)
+        directions=[
+            ("north",(ix,iy+1)),
+            ("south",(ix,iy-1)),
+            ("east",(ix+1,iy)),
+            ("west",(ix-1,iy))]
+        allowed=[name for name,neighbor in directions
+                 if edge((ix,iy),neighbor) not in CONNECTED]
+        if not allowed:
+            continue
+        direction=allowed[room_idx%len(allowed)]
+        for n in range(2):
+            offset=RNG.uniform(-1.30,1.30)
+            z=RNG.uniform(1.42,2.60)
+            rx=RNG.uniform(.23,.78)
+            rz=RNG.uniform(.17,.44)
+            verts=[]
+            for k in range(11):
+                a=TAU*k/11
+                distort=RNG.uniform(.71,1.27)
+                width=rx*math.cos(a)*distort
+                height=rz*math.sin(a)*distort
+                if direction=="north":
+                    xyz=(c.x+offset+width,c.y+CELL*.5-WALL*.5-.007,z+height)
+                elif direction=="south":
+                    xyz=(c.x+offset+width,c.y-CELL*.5+WALL*.5+.007,z+height)
+                elif direction=="east":
+                    xyz=(c.x+CELL*.5-WALL*.5-.007,c.y+offset+width,z+height)
+                else:
+                    xyz=(c.x-CELL*.5+WALL*.5+.007,c.y+offset+width,z+height)
+                verts.append(xyz)
+            mesh=bpy.data.meshes.new("Irregular torn plaster polygon")
+            mesh.from_pydata(verts,[],[tuple(range(len(verts)))])
+            mesh.update()
+            obj=bpy.data.objects.new("Actual peeling moist wall plaster",mesh)
+            bpy.context.collection.objects.link(obj)
+            obj.data.materials.append(
+                palette["rust"] if n==0 and room_idx%3==0 else palette["peeling"])
+
+
+def route_props(palette):
+    """Readable scattered equipment near the walking route, leaving safe passage."""
+    for room,side in (((0,1),-1),((2,1),1),((3,2),-1),((4,1),1),((5,2),-1)):
+        c=grid(*room)
+        x=c.x+side*1.58
+        y=c.y+(.65 if side>0 else -.60)
+        if room in ((2,1),(5,2)):
+            wheeled_cart(x,y,palette)
+        elif room==(3,2):
+            abandoned_bed(x,y,palette)
+        else:
+            wheelchair(x,y,palette)
+
+
 def catmull_point(points,t):
     # Cubic camera spline: a single continuous shot, never a cut.
     i=int(math.floor(t))
@@ -505,6 +567,10 @@ def setup_scene(args):
         "floor":mat_grime("Filthy hospital vinyl and ground-in discoloration",
             ((.115,.135,.117),(.245,.26,.21),(.37,.35,.27)),4.8,.71,.23),
         "grout":mat_plain("Deep black worn tile grout",(.115,.12,.109)),
+        "peeling":mat_grime("Peeling damp black mildew and exposed plaster",
+            ((.075,.095,.075),(.17,.18,.12),(.27,.25,.18)),3.2,.97,.21),
+        "rust":mat_grime("Red-brown leaking rust stain",
+            ((.095,.085,.060),(.24,.15,.075),(.35,.22,.105)),3.6,.99,.07),
         "skirt":mat_plain("Grime-colored polymer baseboard",(.13,.16,.13)),
         "rail":mat_plain("Yellowed hospital corridor guardrail",(.27,.31,.25),.68),
         "iron":mat_plain("Scuffed oxidized aluminium and steel",(.23,.27,.25),.43,.53),
@@ -568,6 +634,8 @@ def setup_scene(args):
         flicker.data.energy=value
         flicker.data.keyframe_insert(data_path="energy",frame=frame)
     place_props(palette)
+    water_damage(palette)
+    route_props(palette)
     animate_camera(args.frames,args.fps)
     s.frame_set(1)
     return s
@@ -584,6 +652,9 @@ def main():
     p.add_argument("--samples",type=int,default=7)
     p.add_argument("--render-still",action="store_true")
     p.add_argument("--still-frame",type=int,default=280)
+    p.add_argument("--preview-percent",type=int,default=70)
+    p.add_argument("--start-frame",type=int,default=1)
+    p.add_argument("--end-frame",type=int,default=0)
     args=p.parse_args(tail)
     if min(args.width,args.height,args.fps,args.frames,args.samples)<1:
         p.error("All quality parameters must be positive")
@@ -603,13 +674,22 @@ def main():
     if args.render_still:
         frame=max(1,min(args.still_frame,args.frames))
         s.frame_set(frame)
+        s.render.resolution_percentage=args.preview_percent
         s.render.filepath=os.path.join(out,"preview.png")
         bpy.ops.render.render(write_still=True)
         print("ACTUAL_BLENDER_RENDERED_STILL",s.render.filepath,flush=True)
     else:
+        stop=args.end_frame if args.end_frame>0 else args.frames
+        if not 1<=args.start_frame<=stop<=args.frames:
+            raise ValueError("Invalid requested shard range")
+        s.frame_start=args.start_frame
+        s.frame_end=stop
         s.render.filepath=os.path.join(frames,"frame_")
+        print("PHYSICAL_RENDER_SHARD",args.start_frame,stop,
+              "OF",args.frames,flush=True)
         bpy.ops.render.render(animation=True)
-        print("ACTUAL_BLENDER_3D_ANIMATION_COMPLETE",args.frames,flush=True)
+        print("ACTUAL_BLENDER_3D_ANIMATION_SHARD_COMPLETE",
+              args.start_frame,stop,flush=True)
 
 
 if __name__=="__main__":
