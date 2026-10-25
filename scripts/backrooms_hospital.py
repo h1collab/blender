@@ -62,7 +62,7 @@ def main():
             strip.blend_type="REPLACE"
         strips.append(strip)
         frame+=expected-manifest["crossfade_frames"]
-    if frame+manifest["crossfade_frames"]-1 != manifest["total_frames"]+1:
+    if frame+manifest["crossfade_frames"]-1 != manifest["total_frames"]:
         # The first n-1 clips overlap with the next by the fade length.
         raise RuntimeError("Unexpected film duration arithmetic: "+str(frame))
 
