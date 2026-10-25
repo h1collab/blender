@@ -1,0 +1,97 @@
+{
+  "title": "The Backrooms — Abandoned Hospital / POV Exploration",
+  "source_license": "https://www.pexels.com/license/",
+  "fps": 25,
+  "total_frames": 750,
+  "crossfade_frames": 4,
+  "shots": [
+    {
+      "section": "00:00 — entrance / genuinely abandoned sanatorium",
+      "frames": 240,
+      "start_at": 0.35,
+      "grade": "ruins",
+      "candidates": [
+        {
+          "id": 12077148,
+          "artist": "Florian Delée",
+          "title": "The Interior of an Abandoned Building — abandoned hospital",
+          "page": "https://www.pexels.com/video/the-interior-of-an-abandoned-building-12077148/",
+          "source_fps": 30
+        },
+        {
+          "id": 3192916,
+          "artist": "Luis Quintero",
+          "title": "Two Doors In A Hospital Isle Are Wide Open",
+          "page": "https://www.pexels.com/video/two-doors-in-a-hospital-isle-are-wide-open-3192916/",
+          "source_fps": 24
+        }
+      ]
+    },
+    {
+      "section": "00:09 — first-person advance through long corridors",
+      "frames": 180,
+      "start_at": 6,
+      "grade": "hallway",
+      "candidates": [
+        {
+          "id": 9658661,
+          "artist": "Videas Cl",
+          "title": "Camera moving through narrow corridor",
+          "page": "https://www.pexels.com/video/camera-moving-through-narrow-corridor-9658661/",
+          "source_fps": 30
+        },
+        {
+          "id": 15201618,
+          "artist": "Darina Evstafeva",
+          "title": "Walking along a Creepy Hotel Corridor — filmed POV",
+          "page": "https://www.pexels.com/video/walking-along-a-creepy-hotel-corridor-15201618/",
+          "source_fps": 24
+        }
+      ]
+    },
+    {
+      "section": "00:16 — deserted nurse station / hospital ward",
+      "frames": 115,
+      "start_at": 0.15,
+      "grade": "ward",
+      "candidates": [
+        {
+          "id": 5203511,
+          "artist": "Enrique Silva",
+          "title": "An Empty Hospital Hallway — nurse station",
+          "page": "https://www.pexels.com/video/an-empty-hospital-hallway-5203511/",
+          "source_fps": 60
+        },
+        {
+          "id": 3192916,
+          "artist": "Luis Quintero",
+          "title": "Two Doors In A Hospital Isle Are Wide Open",
+          "page": "https://www.pexels.com/video/two-doors-in-a-hospital-isle-are-wide-open-3192916/",
+          "source_fps": 24
+        }
+      ]
+    },
+    {
+      "section": "00:21 — deeper into dark unknown hallway",
+      "frames": 227,
+      "start_at": 24,
+      "grade": "night",
+      "candidates": [
+        {
+          "id": 15201618,
+          "artist": "Darina Evstafeva",
+          "title": "Walking along a Creepy Hotel Corridor — filmed POV",
+          "page": "https://www.pexels.com/video/walking-along-a-creepy-hotel-corridor-15201618/",
+          "source_fps": 24
+        },
+        {
+          "id": 9658661,
+          "artist": "Videas Cl",
+          "title": "Camera moving through narrow corridor",
+          "page": "https://www.pexels.com/video/camera-moving-through-narrow-corridor-9658661/",
+          "source_fps": 30
+        }
+      ]
+    }
+  ]
+}
