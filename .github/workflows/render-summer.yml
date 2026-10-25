@@ -1,0 +1,82 @@
+name: Render Summer Paradise
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      quality:
+        description: "Render quality (preview is faster; hd is higher quality)"
+        required: true
+        type: choice
+        default: preview
+        options:
+          - preview
+          - hd
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    name: Blender CPU render and encode MP4
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out the scene script
+        uses: actions/checkout@v4
+
+      - name: Install Blender CLI and FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends blender ffmpeg
+          blender --version
+          ffmpeg -version | head -n 1
+
+      - name: Choose quality settings
+        env:
+          QUALITY: ${{ github.event.inputs.quality || 'preview' }}
+        run: |
+          if [ "$QUALITY" = "hd" ]; then
+            echo "WIDTH=1280" >> "$GITHUB_ENV"
+            echo "HEIGHT=720" >> "$GITHUB_ENV"
+            echo "FRAMES=144" >> "$GITHUB_ENV"
+            echo "SAMPLES=24" >> "$GITHUB_ENV"
+          else
+            echo "WIDTH=854" >> "$GITHUB_ENV"
+            echo "HEIGHT=480" >> "$GITHUB_ENV"
+            echo "FRAMES=96" >> "$GITHUB_ENV"
+            echo "SAMPLES=12" >> "$GITHUB_ENV"
+          fi
+
+      - name: Render PNG frames with Blender
+        run: |
+          mkdir -p output/frames
+          blender --background --factory-startup --threads 4 \
+            --python scripts/summer_paradise.py -- \
+            --output-dir output/frames \
+            --width "$WIDTH" --height "$HEIGHT" --fps 24 \
+            --frames "$FRAMES" --samples "$SAMPLES"
+          test -s output/frames/frame_0001.png
+
+      - name: Encode silent H264 MP4 and a thumbnail
+        run: |
+          ffmpeg -hide_banner -loglevel error -y \
+            -framerate 24 -start_number 1 -i output/frames/frame_%04d.png \
+            -c:v libx264 -preset medium -crf 19 -pix_fmt yuv420p \
+            -movflags +faststart output/summer_paradise.mp4
+          cp output/frames/frame_$(printf '%04d' "$((FRAMES / 2))").png output/preview.png
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 output/summer_paradise.mp4
+          test -s output/summer_paradise.mp4
+
+      - name: Upload finished summer video and Blender project
+        uses: actions/upload-artifact@v4
+        with:
+          name: summer-paradise-video
+          path: |
+            output/summer_paradise.mp4
+            output/preview.png
+            output/summer_paradise.blend
+          if-no-files-found: error
+          retention-days: 14
